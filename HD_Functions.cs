@@ -23,10 +23,6 @@ namespace HyperDrive.Functions
     public class HyperFunctions
     {
 
-        
-        
-        
-
         public static Random diceRoll = new Random();
 
         public static HashSet<IMyEntity> entityList = new HashSet<IMyEntity>();
@@ -39,15 +35,15 @@ namespace HyperDrive.Functions
 
         public static readonly List<MyResourceSourceComponent> _powerSources = new List<MyResourceSourceComponent>();
         public static readonly List<MyCubeBlock> _functionalBlocks = new List<MyCubeBlock>();
-        
+
 
         public static float _maxPower;
         //private float _availablePower;
         //private float _currentPower;
         public static float _powerPercent;
         public static MyPlanet planet;
-        
-        
+
+
 
         double _targetDistance = 0f;
         Vector3D _waypoint = new Vector3D(0, 0, 0);
@@ -172,11 +168,11 @@ namespace HyperDrive.Functions
 
             for (var hyper_actionIndex = 0; hyper_actionIndex < 1; ++hyper_actionIndex)
             {
-                    HyperDriveLogic.ActionEngage = new ActivatehyperProfileAction<Sandbox.ModAPI.Ingame.IMyUpgradeModule>((IMyTerminalBlock)HyperDriveLogic.hyperDriveBlock,
-                    "starthyper" + hyper_actionIndex.ToString(),
-                    "Engage / Disengage"/* + hyper_actionIndex.ToString()*/,
-                    hyper_actionIndex,
-                    @"Textures\GUI\Icons\Actions\Start.dds");
+                HyperDriveLogic.ActionEngage = new ActivatehyperProfileAction<Sandbox.ModAPI.Ingame.IMyUpgradeModule>((IMyTerminalBlock)HyperDriveLogic.hyperDriveBlock,
+                "starthyper" + hyper_actionIndex.ToString(),
+                "Engage / Disengage"/* + hyper_actionIndex.ToString()*/,
+                hyper_actionIndex,
+                @"Textures\GUI\Icons\Actions\Start.dds");
             }
         }
         public class EngageButton<T> : HyperDrive.hyperControl.ButtonhyperControl<T>
@@ -227,6 +223,8 @@ namespace HyperDrive.Functions
 
         }
 
+        //Appending Custom Info
+
         public static void hyperDriveBlock_AppendingCustomInfo(IMyTerminalBlock termblock, StringBuilder info)
         {
             float maxInput = HyperDriveLogic.ResourceSink.MaxRequiredInputByType(HyperDriveLogic._electricity);
@@ -245,25 +243,13 @@ namespace HyperDrive.Functions
                     suffix = " W";
                 }
             }
-            if (HyperDriveLogic.hyperFactor >= 0f && HyperDriveLogic.WF_Scale >= 0f)
-            {
-                float hyperFactor_S = (HyperDriveLogic.hyperFactor * 0.01f);
-                float WF_Scale_S = (HyperDriveLogic.WF_Scale * 0.01f);
-                info.AppendLine("Maximum hyper Factor: " + hyperFactor_S.ToString("0"));
-                info.AppendLine("Current hyper Factor: " + WF_Scale_S.ToString("0.0"));
-                info.AppendLine("Idle Input: " + maxInput.ToString("0.00") + suffix);
-                info.AppendLine("Current Input: " + currentInput.ToString("0.00") + suffix);
-            }
-            else
-            {
-                float hyperFactor_S = 0f;
-                float WF_Scale_S = 0f;
-                info.AppendLine("Maximum hyper Factor: " + hyperFactor_S.ToString("0"));
-                info.AppendLine("Current hyper Factor: " + WF_Scale_S.ToString("0.0"));
-                info.AppendLine("Idle Input: " + maxInput.ToString("0.00") + suffix);
-                info.AppendLine("Current Input: " + currentInput.ToString("0.00") + suffix);
-            }
+            
+            info.AppendLine("Idle Input: " + maxInput.ToString("0.00") + suffix);
+            info.AppendLine("Current Input: " + currentInput.ToString("0.00") + suffix);
+            info.AppendLine("Max Input: " + "150.00mW");
         }
+
+        //Planet Detection
 
         public static double Distance()
         {
@@ -312,6 +298,8 @@ namespace HyperDrive.Functions
 
         }
 
+        //Power Calculations
+
         public static float MinimumPowertoActivate()
         {
             return 15f;
@@ -319,29 +307,17 @@ namespace HyperDrive.Functions
 
         public static float PowerConsumption()
         {
-            if (HyperDriveLogic.WF_Scale < Single.Epsilon && IsWorking())
+            if (IsWorking() && !HyperDriveLogic.hyper)
             {
                 return 15f;
             }
-
-            else if (HyperDriveLogic.WF_Scale < Single.Epsilon && !IsWorking())
+            else if (IsWorking() && HyperDriveLogic.hyper)
             {
-                return 0f;
+                return 150f;
             }
-
             else
             {
-                //return (float)((15f + (17f * (WF_Scale * 0.023f)) * (totalMassF * 0.0015f)));
-                //return (float)((15f + WF_Scale) + (totalMassF * 0.036f / 3f));
-                //return (float)((totalMassF * totalMassF) / (_maxPower * _maxPower * _maxPower) * 0.01f);
-                if (HyperDriveLogic.totalMassF >= 0f)
-                {
-                    return (float)((15f + (17f * (HyperDriveLogic.WF_Scale * 0.023f)) * (HyperDriveLogic.totalMassF * 0.003f)));
-                }
-                else
-                {
-                    return 0f;
-                }
+                return 0f;
             }
         }
 
@@ -381,6 +357,47 @@ namespace HyperDrive.Functions
                     _maxPower += source.MaxOutput;
                 }
         }
+
+        //HyperJump Functions
+
+        public static void HyperJump()
+        {
+            double randomCoordsX = diceRoll.Next(-60000000, 60000000);
+            double randomCoordsY = diceRoll.Next(-60000000, 60000000);
+            double randomCoordsZ = diceRoll.Next(-60000000, 60000000);
+            //Vector3D vec = new Vector3D(randomCoordsX, randomCoordsY, randomCoordsZ);
+            MatrixD mtx = HyperDriveLogic.hyperDriveBlock.CubeGrid.WorldMatrix; // take the world matrix
+            mtx.Translation = new Vector3D(randomCoordsX, randomCoordsY, randomCoordsZ); // Change the translation
+            HyperDriveLogic.hyperDriveBlock.CubeGrid.Teleport(mtx, HyperDriveLogic.hyperDriveBlock.CubeGrid, false);
+        }
+
+        public static void HyperJumpDestination(Vector3D dest, Vector3D start)
+        {
+            MatrixD mtx = HyperDriveLogic.hyperDriveBlock.CubeGrid.WorldMatrix; // take the world matrix
+            //mtx.Translation = dest - 4000f; real
+            mtx.Translation = start - 4000f;
+            HyperDriveLogic.hyperDriveBlock.CubeGrid.Teleport(mtx, HyperDriveLogic.hyperDriveBlock.CubeGrid, false);
+        }
+
+        public static void Warp()
+        {
+            var grid = HyperDriveLogic.hyperDriveBlock.CubeGrid;
+            var from = HyperDriveLogic.hyperDriveBlock.WorldMatrix.Translation + HyperDriveLogic.hyperDriveBlock.WorldMatrix.Forward;// * 1d;
+            var to = HyperDriveLogic.hyperDriveBlock.WorldMatrix.Translation + HyperDriveLogic.hyperDriveBlock.WorldMatrix.Forward * 51d;
+            var gridSpeed = HyperDriveLogic.hyperDriveBlock.CubeGrid.WorldMatrix;
+            var gridTranslation = HyperDriveLogic.hyperDriveBlock.CubeGrid.WorldMatrix.Translation;
+            var gPhysics = HyperDriveLogic.hyperDriveBlock.CubeGrid.Physics;
+            var gameSteps = MyEngineConstants.UPDATE_STEP_SIZE_IN_SECONDS;
+            var predictedMatrix = HyperDriveLogic.hyperDriveBlock.CubeGrid.WorldMatrix;
+            var multipler = 200;
+            predictedMatrix.Translation = gridTranslation + gPhysics.GetVelocityAtPoint(gridTranslation) * gameSteps * multipler;
+            gPhysics.LinearVelocity = from - to;
+            gPhysics.AngularVelocity = Vector3D.Zero;
+            grid.Teleport(predictedMatrix);
+            gPhysics.AngularVelocity = Vector3D.Zero;
+        }
+
+        //Miscellaneous
 
         /*public class Dummy
         {

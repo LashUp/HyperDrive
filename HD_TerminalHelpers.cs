@@ -14,7 +14,7 @@ namespace HyperDrive.Support
 
         public override void UpdateBeforeSimulation()
         {
-            if (HyperDriveLogic.hyperDriveBlock.Enabled)
+            /*if (HyperDriveLogic.hyperDriveBlock.Enabled)
             {
                 //var viewDistance = Session.SessionSettings.ViewDistance;
                 var viewSphere = new BoundingSphereD(MyAPIGateway.Session.Player.GetPosition(), 50000);
@@ -41,7 +41,7 @@ namespace HyperDrive.Support
                         v.Render.UpdateRenderObject(true);
                     }
                 }
-            }
+            }*/
         }
     }
 }
