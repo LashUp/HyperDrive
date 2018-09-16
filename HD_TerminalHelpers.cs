@@ -4,17 +4,30 @@ using Sandbox.ModAPI;
 using VRage.Game.Entity;
 using VRageMath;
 using VRage.Game.Components;
+using VRage.Game;
 
 namespace HyperDrive.Support
 {
     [MySessionComponentDescriptor(MyUpdateOrder.BeforeSimulation)]
     public class Session : MySessionComponentBase
     {
+        public new readonly MyModContext ModContext = new MyModContext();
+
         public static Session Instance { get; private set; }
 
-        public override void UpdateBeforeSimulation()
+        //bool init = false;
+
+        public string ModPath()
         {
-            /*if (HyperDriveLogic.hyperDriveBlock.Enabled)
+            var modPath = ModContext.ModPath;
+            return modPath;
+        }
+
+        /*public override void UpdateBeforeSimulation()
+        {
+
+
+            if (HyperDriveLogic.hyperDriveBlock.Enabled)
             {
                 //var viewDistance = Session.SessionSettings.ViewDistance;
                 var viewSphere = new BoundingSphereD(MyAPIGateway.Session.Player.GetPosition(), 50000);
@@ -41,7 +54,7 @@ namespace HyperDrive.Support
                         v.Render.UpdateRenderObject(true);
                     }
                 }
-            }*/
-        }
+            }
+        }*/
     }
 }

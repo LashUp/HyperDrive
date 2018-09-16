@@ -36,7 +36,6 @@ namespace HyperDrive.Functions
         public static readonly List<MyResourceSourceComponent> _powerSources = new List<MyResourceSourceComponent>();
         public static readonly List<MyCubeBlock> _functionalBlocks = new List<MyCubeBlock>();
 
-
         public static float _maxPower;
         //private float _availablePower;
         //private float _currentPower;
@@ -375,7 +374,7 @@ namespace HyperDrive.Functions
         {
             MatrixD mtx = HyperDriveLogic.hyperDriveBlock.CubeGrid.WorldMatrix; // take the world matrix
             //mtx.Translation = dest - 4000f; real
-            mtx.Translation = start - 4000f;
+            mtx.Translation = start - 1f;
             HyperDriveLogic.hyperDriveBlock.CubeGrid.Teleport(mtx, HyperDriveLogic.hyperDriveBlock.CubeGrid, false);
         }
 

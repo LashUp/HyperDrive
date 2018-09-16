@@ -22,7 +22,7 @@ namespace HyperDrive.Logging
             get
             {
                 if (m_instance == null)
-                    m_instance = new Logging("Transporter.log");
+                    m_instance = new Logging("HyperDrive.log");
 
                 return m_instance;
             }

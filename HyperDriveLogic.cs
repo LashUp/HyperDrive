@@ -18,18 +18,22 @@ using VRage.Game.ObjectBuilders.Definitions;
 using System.Linq;
 using VRage.Game.Entity;
 using VRage.Game.ModAPI;
+using VRage;
 
 namespace HyperDrive
 {
     [MyEntityComponentDescriptor(typeof(MyObjectBuilder_UpgradeModule), false, "CX3WarpCore")]
     public class HyperDriveLogic : MyGameLogicComponent
     {
+        bool _shellBool = false;
 
         Vector3D from = new Vector3D();
         Vector3D to = new Vector3D();
         Vector3D lastPos = new Vector3D();
         Vector3D destination = new Vector3D();
         Vector3D exit = new Vector3D();
+
+        MyParticleEffect _effect;
 
         public static HyperDrive.hyperControl.ButtonhyperControl<Sandbox.ModAPI.Ingame.IMyUpgradeModule> engageButton;
         public static HyperDrive.hyperControl.ControlhyperAction<Sandbox.ModAPI.Ingame.IMyUpgradeModule> ActionEngage;
@@ -43,11 +47,14 @@ namespace HyperDrive
         int _ticks = 132000;
         private uint _tick;
         int warpTimer = 0;
+        int hyperSpaceTimer = 0;
 
         Color White = new Color();
         public static bool jumpOut = false;
         public static bool jumpIn = false;
         public static bool hyperSpace = false;
+        bool ExitWarning10 = false;
+        bool ExitWarning60 = false;
 
 
         bool _bubbleNotification = false;
@@ -108,6 +115,7 @@ namespace HyperDrive
 
                 White = Color.White;
                 MyVisualScriptLogicProvider.ScreenColorFadingSetColor(White);
+
             }
         }
 
@@ -144,6 +152,38 @@ namespace HyperDrive
                 }
                 if (MyAPIGateway.Session.IsServer)
                 {
+                    if (!_shellBool)
+                    {
+                        try
+                        {
+                            var parent = (MyEntity)hyperDriveBlock.CubeGrid;
+                            Spawn._emptyGridShell = Spawn.EmptyEntity("dShellPassive2", $"{Session.Instance.ModPath()}{Spawn._modelShell}", parent, true);
+                            Spawn._emptyGridShell.Render.CastShadows = false;
+                            Spawn._emptyGridShell.IsPreview = true;
+                            Spawn._emptyGridShell.Render.Visible = true;
+                            Spawn._emptyGridShell.Render.RemoveRenderObjects();
+                            Spawn._emptyGridShell.Render.UpdateRenderObject(true);
+                            Spawn._emptyGridShell.Render.UpdateRenderObject(false);
+                            Spawn._emptyGridShell.Save = false;
+                            Spawn._emptyGridShell.SyncFlag = false;
+                            try
+                            {
+                                CreateMobileShape();
+                                Spawn._emptyGridShell.PositionComp.LocalMatrix = Matrix.Zero;  // Bug - Cannot just change X coord, so I reset first.
+                                Spawn._emptyGridShell.PositionComp.LocalMatrix = Spawn._shieldShapeMatrix;
+                            }
+                            catch
+                            {
+                                Logging.Logging.Instance.WriteLine("CreateMobileShape() Failure");
+                            }
+                        }
+                        catch
+                        {
+                            Logging.Logging.Instance.WriteLine("emptyGrid Failure");
+                        }
+                        
+                        _shellBool = true;
+                    }
                     if (ResourceSink.IsPowerAvailable(_electricity, HyperFunctions.PowerConsumption()))
                     {
                         BubbleFormed = true;
@@ -174,14 +214,16 @@ namespace HyperDrive
                                 DsUtilsStatic.GetRealPlayers(hyperDriveBlock.PositionComp.WorldVolume.Center, 500f, realPlayerIds);
                                 foreach (var id in realPlayerIds)
                                 {
-                                    MyVisualScriptLogicProvider.ShowNotification("Jump Initialisation Success: " + "Maybe", 500, "White", id);
+                                    //MyVisualScriptLogicProvider.ShowNotification("Jump Initialisation Success: " + "Maybe", 9500, "White", id);
                                     MyVisualScriptLogicProvider.ScreenColorFadingStart(0.25f, true);
                                 }
-                                jumpOut = true;
                                 lastPos = hyperDriveBlock.CubeGrid.GetPosition();
                                 from = hyperDriveBlock.WorldMatrix.Translation + hyperDriveBlock.WorldMatrix.Forward;// * 1d;
                                 to = hyperDriveBlock.WorldMatrix.Translation + hyperDriveBlock.WorldMatrix.Forward * 2001d;
                                 destination = from - to;
+                                hyperSpaceTimer = 7200;
+                                //hyperSpaceTimer = (hyperSpaceTimer + distanceVar);
+                                jumpOut = true;
                                 HyperFunctions.HyperJump();
                             }
                         }
@@ -194,28 +236,61 @@ namespace HyperDrive
                             {
                                 var realPlayerIds = new List<long>();
                                 jumpOut = false;
-                                hyperSpace = true;
                                 DsUtilsStatic.GetRealPlayers(hyperDriveBlock.PositionComp.WorldVolume.Center, 500f, realPlayerIds);
                                 foreach (var id in realPlayerIds)
                                 {
-                                    MyVisualScriptLogicProvider.ShowNotification("Jump Time: " + "Time to Jump to HyperSpace", 19200, "Red", id);
-                                    MyVisualScriptLogicProvider.ScreenColorFadingStartSwitch(0.04f);
+                                    //MyVisualScriptLogicProvider.ShowNotification("Jump Time: " + "Time to Jump to HyperSpace", 9500, "White", id);
+                                    MyVisualScriptLogicProvider.ScreenColorFadingStartSwitch(0.25f);
                                 }
+                                hyperSpace = true;
                                 HyperEngaged = false;
+                                HyperSpaceParticle();
                             }
                         }
                     }
                     if (hyperSpace)
                     {
-                        warpTimer = (warpTimer + 1);//replace with HyperJump timer
-                        if (warpTimer < 200)
+                        hyperSpaceTimer = (hyperSpaceTimer - 1);
+
+                        try
+                        {
+                            ShellVisibility(true);
+                        }
+                        catch
+                        {
+                            Logging.Logging.Instance.WriteLine("ShellVisibility(true) Failure");
+                        }
+
+                        if (hyperSpaceTimer >= 0)
                         {
                             hyperDriveBlock.CubeGrid.Physics.AngularVelocity = Vector3D.Zero;
                             hyperDriveBlock.CubeGrid.Physics.LinearVelocity = Vector3D.Zero;
+
+                            if (!ExitWarning10 && hyperSpaceTimer <= 600)
+                            {
+                                var realPlayerIds = new List<long>();
+                                DsUtilsStatic.GetRealPlayers(hyperDriveBlock.PositionComp.WorldVolume.Center, 500f, realPlayerIds);
+                                foreach (var id in realPlayerIds)
+                                {
+                                    MyVisualScriptLogicProvider.ShowNotification("10 Seconds to Normal Space", 9600, "White", id);
+                                }
+                                ExitWarning10 = true;
+                            }
+                            else if (!ExitWarning60 && hyperSpaceTimer <= 3600)
+                            {
+                                var realPlayerIds = new List<long>();
+                                DsUtilsStatic.GetRealPlayers(hyperDriveBlock.PositionComp.WorldVolume.Center, 500f, realPlayerIds);
+                                foreach (var id in realPlayerIds)
+                                {
+                                    MyVisualScriptLogicProvider.ShowNotification("60 Seconds to Normal Space", 9600, "White", id);
+                                }
+                                ExitWarning60 = true;
+                            }
                         }
-                        else
+                        else if (ExitWarning10 && ExitWarning60)
                         {
-                            if (warpTimer >= 200 && warpTimer < 225)
+                            warpTimer = (warpTimer + 1);
+                            if (warpTimer < 25)
                             {
                                 var realPlayerIds = new List<long>();
                                 DsUtilsStatic.GetRealPlayers(hyperDriveBlock.PositionComp.WorldVolume.Center, 500f, realPlayerIds);
@@ -230,6 +305,10 @@ namespace HyperDrive
                                 hyperSpace = false;
                                 jumpIn = true;
                                 warpTimer = 0;
+                                ExitWarning10 = false;
+                                ExitWarning60 = false;
+                                //hyperSpaceTimer = 7200;
+                                HyperSpaceParticleStop();
                             }
                         }
                     }
@@ -253,8 +332,16 @@ namespace HyperDrive
                     }
                     if (jumpIn)
                     {
-                        warpTimer = (warpTimer + 1);//replace with HyperJump timer
+                        warpTimer = (warpTimer + 1);
                         HyperFunctions.Warp();
+                        try
+                        {
+                            ShellVisibility(false);
+                        }
+                        catch
+                        {
+                            Logging.Logging.Instance.WriteLine("ShellVisibility(false) Failure");
+                        }
                         if (warpTimer > 30)
                         {
                             var realPlayerIds = new List<long>();
@@ -297,6 +384,59 @@ namespace HyperDrive
                 emitter.PlaySound(pair);
             }
             //Logging.Logging.Instance.WriteLine("Hyper Jump Disengaged Successfully");
+        }
+
+        //Particles
+
+        private void HyperSpaceParticle()
+        {
+            //var _effect = "WarpDrivePrototype";
+            var pos = HyperDriveLogic.hyperDriveBlock.CubeGrid.PositionComp.WorldAABB.Center;
+            uint entId = (uint)HyperDriveLogic.hyperDriveBlock.CubeGrid.EntityId;
+            Vector3D dir = Vector3D.Normalize(hyperDriveBlock.WorldMatrix.Forward);  // Relative to grid
+            MatrixD matrix = MatrixD.CreateFromDir(-dir);
+
+
+            MyParticlesManager.TryCreateParticleEffect(1701, out _effect, ref matrix, ref pos, entId, true); // 15, 16, 24, 25, 28, (31, 32) 211 215 53
+            if (_effect == null) return;
+            //_effect.UserEmitterScale = (float)HyperDriveLogic.hyperDriveBlock.CubeGrid.GridSize;// * 30f;
+            _effect.UserScale = (float)HyperDriveLogic.hyperDriveBlock.CubeGrid.GridSize * 2f; //1.75f to 2.0f
+            matrix.Translation = pos + dir * hyperDriveBlock.CubeGrid.PositionComp.WorldAABB.HalfExtents.AbsMax() * -4f; //???
+            _effect.WorldMatrix = matrix;
+            _effect.Loop = true;
+            _effect.Play();
+        }
+
+        public void HyperSpaceParticleStop()
+        {
+            if (_effect == null) return;
+            _effect.Stop();
+            _effect.Close(false, true);
+            _effect = null;
+        }
+
+        //Ellipsoid
+
+        //Shell Entities
+
+        private void CreateMobileShape()
+        {
+            var shieldSize = hyperDriveBlock.CubeGrid.PositionComp.WorldAABB.HalfExtents * 5f;
+            //ShieldSize = shieldSize;
+            var mobileMatrix = MatrixD.CreateScale(shieldSize);
+            mobileMatrix.Translation = hyperDriveBlock.CubeGrid.PositionComp.LocalVolume.Center;
+            Spawn._shieldShapeMatrix = mobileMatrix;
+        }
+
+        private void ShellVisibility(bool forceInvisible = false)
+        {
+            if (forceInvisible)
+            {
+                Spawn._emptyGridShell.Render.UpdateRenderObject(false);
+                return;
+            }
+
+            else Spawn._emptyGridShell.Render.UpdateRenderObject(true);
         }
     }
 }
