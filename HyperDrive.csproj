@@ -73,6 +73,7 @@
     <Compile Include="HD_DSUtils.cs" />
     <Compile Include="HD_Functions.cs" />
     <Compile Include="HD_Logging.cs" />
+    <Compile Include="HD_SpawnFunc.cs" />
     <Compile Include="MissileLight.cs" />
     <Compile Include="HD_NPCStuff.cs" />
     <Compile Include="HD_NPCStuff_XWing.cs" />

@@ -11,7 +11,7 @@ using Sandbox.ModAPI.Interfaces.Terminal;
 namespace HyperDrive.hyperControl
 {
 
-    public class ButtonhyperControl<T> : BasehyperControl<T>
+    internal class ButtonhyperControl<T> : BasehyperControl<T>
     {
         public ButtonhyperControl(
             IMyTerminalBlock hyper_block,

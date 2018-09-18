@@ -22,7 +22,7 @@ using VRage;
 
 namespace HyperDrive
 {
-    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_UpgradeModule), false, "CX3WarpCore")]
+    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_JumpDrive), false, "CX3WarpCore")]
     public class HyperDriveLogic : MyGameLogicComponent
     {
         bool _shellBool = false;
@@ -35,10 +35,8 @@ namespace HyperDrive
 
         MyParticleEffect _effect;
 
-        public static HyperDrive.hyperControl.ButtonhyperControl<Sandbox.ModAPI.Ingame.IMyUpgradeModule> engageButton;
-        public static HyperDrive.hyperControl.ControlhyperAction<Sandbox.ModAPI.Ingame.IMyUpgradeModule> ActionEngage;
-        public static MyEntity3DSoundEmitter emitter;
-        public static MySoundPair pair = new MySoundPair("Hyper");
+        internal static hyperControl.ButtonhyperControl<Sandbox.ModAPI.Ingame.IMyJumpDrive> engageButton;
+        internal static hyperControl.ControlhyperAction<Sandbox.ModAPI.Ingame.IMyJumpDrive> ActionEngage;
 
         public static bool hyper = false;
         public static bool BubbleFormed = true;
@@ -49,7 +47,6 @@ namespace HyperDrive
         int warpTimer = 0;
         int hyperSpaceTimer = 0;
 
-        Color White = new Color();
         public static bool jumpOut = false;
         public static bool jumpIn = false;
         public static bool hyperSpace = false;
@@ -62,31 +59,28 @@ namespace HyperDrive
 
         bool fade = true;
 
-        bool firstrun = true;
+        public static bool firstrun = true;
         bool HyperEngaged = false;
         bool gravMsg = false;
 
-        public static IMyUpgradeModule hyperDriveBlock;
+        public static IMyJumpDrive hyperDriveBlock;
         MyObjectBuilder_EntityBase _objectBuilder;
-
-        public static MyResourceSinkComponent ResourceSink;
-        public static MyDefinitionId _electricity = MyResourceDistributorComponent.ElectricityId;
 
         public override void Init(MyObjectBuilder_EntityBase objectBuilder)
         {
             NeedsUpdate |= MyEntityUpdateEnum.EACH_FRAME | MyEntityUpdateEnum.BEFORE_NEXT_FRAME;
             _objectBuilder = objectBuilder;
 
-            hyperDriveBlock = Entity as IMyUpgradeModule;
+            hyperDriveBlock = Entity as IMyJumpDrive;
 
-            if (!hyperDriveBlock.Components.TryGet<MyResourceSinkComponent>(out ResourceSink))
+            if (!hyperDriveBlock.Components.TryGet<MyResourceSinkComponent>(out HyperFunctions.ResourceSink))
             {
-                ResourceSink = new MyResourceSinkComponent();
+                HyperFunctions.ResourceSink = new MyResourceSinkComponent();
                 var sinkInfo = new MyResourceSinkInfo();
-                sinkInfo.ResourceTypeId = _electricity;
-                ResourceSink.AddType(ref sinkInfo);
+                sinkInfo.ResourceTypeId = HyperFunctions._electricity;
+                HyperFunctions.ResourceSink.AddType(ref sinkInfo);
 
-                hyperDriveBlock.Components.Add(ResourceSink);
+                hyperDriveBlock.Components.Add(HyperFunctions.ResourceSink);
             }
         }
 
@@ -94,28 +88,7 @@ namespace HyperDrive
         {
             if (firstrun)
             {
-                var info = new List<MyUpgradeModuleInfo>();
-                hyperDriveBlock.GetUpgradeList(out info);
-
-                Maxhyper = info.FirstOrDefault(x => x.UpgradeType == "WarpFactor").Modifier;
-
-                ResourceSink.SetMaxRequiredInputByType(_electricity, HyperFunctions.MinimumPowertoActivate());
-                ResourceSink.SetRequiredInputByType(_electricity, HyperFunctions.PowerConsumption());
-                ResourceSink.SetRequiredInputFuncByType(_electricity, HyperFunctions.PowerConsumption);
-                ResourceSink.Update();
-
-                hyperDriveBlock.AppendingCustomInfo += HyperFunctions.hyperDriveBlock_AppendingCustomInfo;
-
-                Maxhyper = Maxhyper * 100f;
-                emitter = new Sandbox.Game.Entities.MyEntity3DSoundEmitter(hyperDriveBlock as MyEntity);
-                MyEntity3DSoundEmitter.PreloadSound(pair);
-                HyperFunctions.CreatehyperUI();
-
-                firstrun = false;
-
-                White = Color.White;
-                MyVisualScriptLogicProvider.ScreenColorFadingSetColor(White);
-
+                HyperFunctions.Init();
             }
         }
 
@@ -146,7 +119,7 @@ namespace HyperDrive
                     MyAPIGateway.Parallel.StartBackground(HyperFunctions.BackGroundChecks);
                     //HyperFunctions._powerPercent = (HyperFunctions._maxPower * 0.6f);
                     HyperFunctions.UpdateGridPower();
-                    ResourceSink.Update();
+                    HyperFunctions.ResourceSink.Update();
                     hyperDriveBlock.RefreshCustomInfo();
                     _ticks = 0;
                 }
@@ -168,7 +141,7 @@ namespace HyperDrive
                             Spawn._emptyGridShell.SyncFlag = false;
                             try
                             {
-                                CreateMobileShape();
+                                Session.Instance.CreateMobileShape();
                                 Spawn._emptyGridShell.PositionComp.LocalMatrix = Matrix.Zero;  // Bug - Cannot just change X coord, so I reset first.
                                 Spawn._emptyGridShell.PositionComp.LocalMatrix = Spawn._shieldShapeMatrix;
                             }
@@ -184,12 +157,12 @@ namespace HyperDrive
                         
                         _shellBool = true;
                     }
-                    if (ResourceSink.IsPowerAvailable(_electricity, HyperFunctions.PowerConsumption()))
+                    if (HyperFunctions.ResourceSink.IsPowerAvailable(HyperFunctions._electricity, HyperFunctions.PowerConsumption()))
                     {
                         BubbleFormed = true;
                         _bubbleNotification = true;
                     }
-                    else if (!ResourceSink.IsPowerAvailable(_electricity, HyperFunctions.PowerConsumption()))
+                    else if (!HyperFunctions.ResourceSink.IsPowerAvailable(HyperFunctions._electricity, HyperFunctions.PowerConsumption()))
                     {
                         BubbleFormed = false;
                     }
@@ -254,7 +227,7 @@ namespace HyperDrive
 
                         try
                         {
-                            ShellVisibility(true);
+                            Session.Instance.ShellVisibility(true);
                         }
                         catch
                         {
@@ -290,8 +263,9 @@ namespace HyperDrive
                         else if (ExitWarning10 && ExitWarning60)
                         {
                             warpTimer = (warpTimer + 1);
-                            if (warpTimer < 25)
+                            if (warpTimer < 25 && fade)
                             {
+                                fade = false;
                                 var realPlayerIds = new List<long>();
                                 DsUtilsStatic.GetRealPlayers(hyperDriveBlock.PositionComp.WorldVolume.Center, 500f, realPlayerIds);
                                 foreach (var id in realPlayerIds)
@@ -326,7 +300,7 @@ namespace HyperDrive
                         }
                         if (!hyper)
                         {
-                            emitter.StopSound(false, true);
+                            HyperFunctions.emitter.StopSound(false, true);
                             HyperEngaged = false;
                         }
                     }
@@ -336,7 +310,7 @@ namespace HyperDrive
                         HyperFunctions.Warp();
                         try
                         {
-                            ShellVisibility(false);
+                            Session.Instance.ShellVisibility(false);
                         }
                         catch
                         {
@@ -344,11 +318,15 @@ namespace HyperDrive
                         }
                         if (warpTimer > 30)
                         {
-                            var realPlayerIds = new List<long>();
-                            DsUtilsStatic.GetRealPlayers(hyperDriveBlock.PositionComp.WorldVolume.Center, 500f, realPlayerIds);
-                            foreach (var id in realPlayerIds)
+                            if (!fade)
                             {
-                                MyVisualScriptLogicProvider.ScreenColorFadingStartSwitch(0.04f);
+                                fade = true;
+                                var realPlayerIds = new List<long>();
+                                DsUtilsStatic.GetRealPlayers(hyperDriveBlock.PositionComp.WorldVolume.Center, 500f, realPlayerIds);
+                                foreach (var id in realPlayerIds)
+                                {
+                                    MyVisualScriptLogicProvider.ScreenColorFadingStartSwitch(0.04f);
+                                }
                             }
                             if (warpTimer > 120)
                             {
@@ -375,13 +353,13 @@ namespace HyperDrive
                 hyper = false;
                 HyperFunctions._powerPercent = 0f;
                 MyEntity3DSoundEmitter.ClearEntityEmitters();
-                emitter.StopSound(false, true);
+                HyperFunctions.emitter.StopSound(false, true);
             }
             else if (!HyperEngaged)
             {
                 HyperEngaged = true;
                 hyper = false;
-                emitter.PlaySound(pair);
+                HyperFunctions.emitter.PlaySound(HyperFunctions.pair);
             }
             //Logging.Logging.Instance.WriteLine("Hyper Jump Disengaged Successfully");
         }
@@ -417,27 +395,6 @@ namespace HyperDrive
 
         //Ellipsoid
 
-        //Shell Entities
-
-        private void CreateMobileShape()
-        {
-            var shieldSize = hyperDriveBlock.CubeGrid.PositionComp.WorldAABB.HalfExtents * 5f;
-            //ShieldSize = shieldSize;
-            var mobileMatrix = MatrixD.CreateScale(shieldSize);
-            mobileMatrix.Translation = hyperDriveBlock.CubeGrid.PositionComp.LocalVolume.Center;
-            Spawn._shieldShapeMatrix = mobileMatrix;
-        }
-
-        private void ShellVisibility(bool forceInvisible = false)
-        {
-            if (forceInvisible)
-            {
-                Spawn._emptyGridShell.Render.UpdateRenderObject(false);
-                return;
-            }
-
-            else Spawn._emptyGridShell.Render.UpdateRenderObject(true);
-        }
     }
 }
  

@@ -23,6 +23,28 @@ namespace HyperDrive.Support
             return modPath;
         }
 
+        //Shell Entities
+
+        public void CreateMobileShape()
+        {
+            var shieldSize = HyperDriveLogic.hyperDriveBlock.CubeGrid.PositionComp.WorldAABB.HalfExtents * 5f;
+            //ShieldSize = shieldSize;
+            var mobileMatrix = MatrixD.CreateScale(shieldSize);
+            mobileMatrix.Translation = HyperDriveLogic.hyperDriveBlock.CubeGrid.PositionComp.LocalVolume.Center;
+            Spawn._shieldShapeMatrix = mobileMatrix;
+        }
+
+        public void ShellVisibility(bool forceInvisible = false)
+        {
+            if (forceInvisible)
+            {
+                Spawn._emptyGridShell.Render.UpdateRenderObject(false);
+                return;
+            }
+
+            else Spawn._emptyGridShell.Render.UpdateRenderObject(true);
+        }
+
         /*public override void UpdateBeforeSimulation()
         {
 

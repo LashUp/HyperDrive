@@ -17,6 +17,7 @@ using VRage.Game.ObjectBuilders.Definitions;
 using System.Linq;
 using VRage.Game.Entity;
 using VRage.Game.ModAPI;
+using Sandbox.ModAPI.Interfaces.Terminal;
 
 namespace HyperDrive.Functions
 {
@@ -49,6 +50,40 @@ namespace HyperDrive.Functions
         public static IMyRemoteControl _rc;
         bool _rcsettings = false;
 
+        public static MySoundPair pair = new MySoundPair("Hyper");
+        public static MyEntity3DSoundEmitter emitter;
+
+        public static MyResourceSinkComponent ResourceSink;
+        public static MyDefinitionId _electricity = MyResourceDistributorComponent.ElectricityId;
+
+        public static Color White = new Color();
+
+        static public void Init()
+        {
+            //var info = new List<MyJumpDriveInfo>();
+            //hyperDriveBlock.GetUpgradeList(out info);
+
+            //Maxhyper = info.FirstOrDefault(x => x.UpgradeType == "WarpFactor").Modifier;
+
+            ResourceSink.SetMaxRequiredInputByType(_electricity, MinimumPowertoActivate());
+            ResourceSink.SetRequiredInputByType(_electricity, PowerConsumption());
+            ResourceSink.SetRequiredInputFuncByType(_electricity, PowerConsumption);
+            ResourceSink.Update();
+
+            HyperDriveLogic.hyperDriveBlock.AppendingCustomInfo += hyperDriveBlock_AppendingCustomInfo;
+
+            HyperDriveLogic.Maxhyper = HyperDriveLogic.Maxhyper * 100f;
+            emitter = new Sandbox.Game.Entities.MyEntity3DSoundEmitter(HyperDriveLogic.hyperDriveBlock as MyEntity);
+            MyEntity3DSoundEmitter.PreloadSound(pair);
+            UIGen.CreatehyperUI();
+            //HyperFunctions.HideVanillaActions();
+
+            HyperDriveLogic.firstrun = false;
+
+            White = Color.White;
+            MyVisualScriptLogicProvider.ScreenColorFadingSetColor(White);
+        }
+
         public static void EmergencyStop()
         {
             List<IMySlimBlock> _termBlocks = new List<IMySlimBlock>();
@@ -63,7 +98,7 @@ namespace HyperDrive.Functions
                 {
 
                     MySoundPair _electricAudio = new MySoundPair("ParticleElectricalDischarge");
-                    HyperDriveLogic.emitter.PlaySound(_electricAudio);
+                    emitter.PlaySound(_electricAudio);
 
                     double _dmgDiceChance = diceRoll.Next(0, 100);
 
@@ -156,78 +191,12 @@ namespace HyperDrive.Functions
             }
         }
 
-        //-------------TERMINAL CONTROLS-------------//
-
-        public static void CreatehyperUI()
-        {
-            object engageButton;
-            engageButton = new EngageButton<Sandbox.ModAPI.Ingame.IMyUpgradeModule>((IMyTerminalBlock)HyperDriveLogic.hyperDriveBlock,
-                "starthyper",
-                "Engage / Disengage");
-
-            for (var hyper_actionIndex = 0; hyper_actionIndex < 1; ++hyper_actionIndex)
-            {
-                HyperDriveLogic.ActionEngage = new ActivatehyperProfileAction<Sandbox.ModAPI.Ingame.IMyUpgradeModule>((IMyTerminalBlock)HyperDriveLogic.hyperDriveBlock,
-                "starthyper" + hyper_actionIndex.ToString(),
-                "Engage / Disengage"/* + hyper_actionIndex.ToString()*/,
-                hyper_actionIndex,
-                @"Textures\GUI\Icons\Actions\Start.dds");
-            }
-        }
-        public class EngageButton<T> : HyperDrive.hyperControl.ButtonhyperControl<T>
-        {
-            public EngageButton(IMyTerminalBlock hyper_block,
-                string internalName,
-                string title)
-                : base(HyperDriveLogic.hyperDriveBlock, internalName, title)
-            {
-                CreatehyperUI();
-            }
-
-            public override void OnhyperAction(IMyTerminalBlock hyper_block)
-            {
-                var hyperDriveBlock_Block = hyper_block.GameLogic.GetAs<HyperDriveLogic>();
-                if (hyperDriveBlock_Block == null) { Logging.Logging.Instance.WriteLine("Null Error 2"); return; }
-                hyperDriveBlock_Block.Engage_OnOff();
-            }
-        }
-
-        public class ActivatehyperProfileAction<T> : hyperControl.ControlhyperAction<T>
-        {
-            public int ProfileNr;
-            public ActivatehyperProfileAction(
-                IMyTerminalBlock hyper_block,
-                string internalName,
-                string name,
-                int profileNr,
-                string icon)
-                : base(hyper_block, internalName, name, icon)
-            {
-                ProfileNr = profileNr;
-            }
-
-            public override bool hyperVisible(IMyTerminalBlock hyper_block)
-            {
-                var hyperDriveBlock_Block = hyper_block.GameLogic.GetAs<HyperDriveLogic>();
-                if (hyperDriveBlock_Block == null) { return false; }
-                return base.hyperVisible(hyper_block);
-            }
-
-            public override void OnhyperAction(IMyTerminalBlock hyper_block)
-            {
-                var hyperDriveBlock_Block = hyper_block.GameLogic.GetAs<HyperDriveLogic>();
-                if (hyperDriveBlock_Block == null) { Logging.Logging.Instance.WriteLine("Null Error 4"); return; }
-                hyperDriveBlock_Block.Engage_OnOff();
-            }
-
-        }
-
         //Appending Custom Info
 
         public static void hyperDriveBlock_AppendingCustomInfo(IMyTerminalBlock termblock, StringBuilder info)
         {
-            float maxInput = HyperDriveLogic.ResourceSink.MaxRequiredInputByType(HyperDriveLogic._electricity);
-            float currentInput = HyperDriveLogic.ResourceSink.CurrentInputByType(HyperDriveLogic._electricity);
+            float maxInput = ResourceSink.MaxRequiredInputByType(_electricity);
+            float currentInput = ResourceSink.CurrentInputByType(_electricity);
             string suffix = " MW";
 
             if (maxInput < 1)
@@ -322,7 +291,7 @@ namespace HyperDrive.Functions
 
         public static bool IsWorking()
         {
-            return HyperDriveLogic.hyperDriveBlock.IsFunctional && HyperDriveLogic.hyperDriveBlock.Enabled && HyperDriveLogic.ResourceSink.IsPowerAvailable(HyperDriveLogic._electricity, MinimumPowertoActivate());
+            return HyperDriveLogic.hyperDriveBlock.IsFunctional && HyperDriveLogic.hyperDriveBlock.Enabled && ResourceSink.IsPowerAvailable(_electricity, MinimumPowertoActivate());
         }
 
         public static void BackGroundChecks()
@@ -593,5 +562,82 @@ namespace HyperDrive.Functions
         //shipFWD = shipFWD_MTX.Translation;
         //var _termBDisable = remote.FatBlock as IMyFunctionalBlock;
         //_termBDisable.Enabled = false;
+    }
+
+    internal static class UIGen
+    {
+
+        //-------------TERMINAL CONTROLS-------------//
+
+        /*public static void HideVanillaActions(List<IMyTerminalAction> actions)
+        {
+            foreach (var a in actions)
+            {
+                if (!a.Id.StartsWith("hyper_")) a.Enabled = terminalBlock => false;
+            }
+        }*/
+
+        internal static void CreatehyperUI()
+        {
+            object engageButton;
+            engageButton = new EngageButton<Sandbox.ModAPI.Ingame.IMyJumpDrive>((IMyTerminalBlock)HyperDriveLogic.hyperDriveBlock,
+                "hyper_start",
+                "Engage / Disengage");
+
+            for (var hyper_actionIndex = 0; hyper_actionIndex < 1; ++hyper_actionIndex)
+            {
+                HyperDriveLogic.ActionEngage = new ActivatehyperProfileAction<Sandbox.ModAPI.Ingame.IMyJumpDrive>((IMyTerminalBlock)HyperDriveLogic.hyperDriveBlock,
+                "hyper_start" + hyper_actionIndex.ToString(),
+                "Engage / Disengage"/* + hyper_actionIndex.ToString()*/,
+                hyper_actionIndex,
+                @"Textures\GUI\Icons\Actions\Start.dds");
+            }
+        }
+        private class EngageButton<T> : HyperDrive.hyperControl.ButtonhyperControl<T>
+        {
+            public EngageButton(IMyTerminalBlock hyper_block,
+                string internalName,
+                string title)
+                : base(HyperDriveLogic.hyperDriveBlock, internalName, title)
+            {
+                CreatehyperUI();
+            }
+
+            public override void OnhyperAction(IMyTerminalBlock hyper_block)
+            {
+                var hyperDriveBlock_Block = hyper_block?.GameLogic?.GetAs<HyperDriveLogic>();
+                if (hyperDriveBlock_Block == null) { Logging.Logging.Instance.WriteLine("Null Error 2"); return; }
+                hyperDriveBlock_Block?.Engage_OnOff();
+            }
+        }
+
+        private class ActivatehyperProfileAction<T> : hyperControl.ControlhyperAction<T>
+        {
+            public int ProfileNr;
+            public ActivatehyperProfileAction(
+                IMyTerminalBlock hyper_block,
+                string internalName,
+                string name,
+                int profileNr,
+                string icon)
+                : base(hyper_block, internalName, name, icon)
+            {
+                ProfileNr = profileNr;
+            }
+
+            public override bool hyperVisible(IMyTerminalBlock hyper_block)
+            {
+                var hyperDriveBlock_Block = hyper_block?.GameLogic?.GetAs<HyperDriveLogic>();
+                if (hyperDriveBlock_Block == null) { return false; }
+                return base.hyperVisible(hyper_block);
+            }
+
+            public override void OnhyperAction(IMyTerminalBlock hyper_block)
+            {
+                var hyperDriveBlock_Block = hyper_block?.GameLogic?.GetAs<HyperDriveLogic>();
+                if (hyperDriveBlock_Block == null) { Logging.Logging.Instance.WriteLine("Null Error 4"); return; }
+                hyperDriveBlock_Block?.Engage_OnOff();
+            }
+        }
     }
 }

@@ -6,9 +6,9 @@ using Sandbox.ModAPI.Interfaces.Terminal;
 
 namespace HyperDrive.hyperControl
 {
-    public class BasehyperControl<T>
+    internal class BasehyperControl<T>
     {
-        public SerializableDefinitionId Definition;
+        private SerializableDefinitionId Definition;
         public string InternalName;
         public string Title;
 
@@ -25,8 +25,8 @@ namespace HyperDrive.hyperControl
         public void CreatehyperUI()
         {
             var hyper_controls = new List<IMyTerminalControl>();
-            MyAPIGateway.TerminalControls.GetControls<T>(out hyper_controls);
-            var hyper_control = hyper_controls.Find((x) => x.Id.ToString() == InternalName);
+            MyAPIGateway.TerminalControls?.GetControls<T>(out hyper_controls);
+            var hyper_control = hyper_controls?.Find((x) => x.Id.ToString() == InternalName);
             if (hyper_control == null)
             {
                 OnCreatehyperUI();

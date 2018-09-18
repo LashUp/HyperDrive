@@ -18,7 +18,7 @@ using Sandbox.ModAPI.Interfaces.Terminal;
 
 namespace HyperDrive.hyperControl
 {
-    public class ControlhyperAction<T>
+    internal class ControlhyperAction<T>
     {
         public SerializableDefinitionId hyperDefinition;
         public string InternalName;
